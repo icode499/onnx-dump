@@ -15,7 +15,7 @@ Enhance the existing `manifest.json` with per-tensor summary statistics and a da
 
 ### 1. manifest.json Changes
 
-**Schema version:** `"1.0"` → `"1.1"`
+**Schema version:** `"1.0"` → `"1.1"` (additive change only — new `summary` field is added to tensor entries. Consumers of `1.0` manifests SHOULD ignore unknown fields.)
 
 Each tensor entry in `inputs`, `outputs`, `graph_inputs`, and `graph_outputs` gains a `summary` field:
 
@@ -53,18 +53,26 @@ Each tensor entry in `inputs`, `outputs`, `graph_inputs`, and `graph_outputs` ga
 | `num_elements` | int | Total element count (`array.size`) |
 | `preview` | string | Flattened first 8 elements as string, with `...` and total count if truncated |
 
+**Numeric dtypes** (float16, float32, float64, int8, int16, int32, int64, uint8, uint16, uint32, uint64): receive all statistical fields. Note that `mean` and `std` of integer arrays produce float results.
+
 **Non-numeric dtypes** (bool, string, object): only `num_elements` and `preview` are populated; statistical fields (`min`, `max`, `mean`, `std`, `zeros`, `nan_count`, `inf_count`) are omitted.
 
 **Empty tensors** (0 elements): `summary` contains only `num_elements: 0` and `preview: "[]"`.
 
+**JSON serialization of special float values:** JSON has no `NaN`/`Infinity` literals. When a stat value is NaN (e.g., `nanmin` on an all-NaN array) or Inf, serialize it as `null`. This ensures valid JSON output. Example: an all-NaN float32 tensor produces `"min": null, "max": null, "mean": null, "std": null`.
+
+**Missing tensors:** When a tensor name is not found in the results dict (i.e., `_tensor_entry` produces `data_path: null`), no `summary` field is added.
+
 **Preview format:**
 - If `num_elements <= 8`: `"[1.0, 2.0, 3.0]"` (all elements, no ellipsis)
 - If `num_elements > 8`: `"[0.123, -1.456, 2.789, 0.0, 3.142, 0.567, -2.345, 1.890, ...] (150528 elements)"`
-- Float values are rounded to 6 significant digits for readability.
+- Values are formatted using Python's `f"{x:.6g}"` format specifier (6 significant digits, scientific notation for very large/small values, e.g., `1.23457e+06`).
 
 ### 2. Terminal Summary Table
 
-After export completes, print a summary table via `logger.info`:
+After export completes, print a summary table via `logger.info`.
+
+**Column widths and truncation:** Tensor names longer than 22 characters are truncated with `...` (e.g., `"/model/layer4/laye..."`). Shape strings longer than 15 characters are similarly truncated.
 
 ```
 Tensor Summary (5 tensors, 1.2 MB total):
@@ -106,12 +114,16 @@ All changes are in `src/onnx_dump/exporter.py` — no new files.
 Add tests in `tests/test_exporter.py`:
 
 - **test_summary_stats_correct**: verify min/max/mean/std against known arrays
-- **test_summary_with_nan_inf**: array containing NaN and Inf values
+- **test_summary_with_nan_inf**: array containing NaN and Inf values, verify `null` in JSON
+- **test_summary_all_nan**: all-NaN array, verify all stats are `null`
 - **test_summary_empty_array**: 0-element tensor
 - **test_summary_bool_dtype**: boolean tensor (stats omitted)
+- **test_summary_integer_dtype**: integer tensor receives full stats
 - **test_preview_truncation**: verify `...` for arrays > 8 elements
 - **test_preview_small_array**: verify no `...` for arrays <= 8 elements
 - **test_schema_version_updated**: manifest has `schema_version: "1.1"`
+- **test_print_summary_table_format**: capture logger output and verify table structure
+- **test_summary_table_nan_warning**: verify warning line when tensors contain NaN/Inf
 
 ### 5. Non-Goals
 
