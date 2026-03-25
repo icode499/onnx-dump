@@ -7,6 +7,7 @@ dependencies = [
     "onnx>=1.14.0",
     "onnxruntime>=1.16.0",
     "numpy>=1.24.0",
+    "pytest>=9.0.2",
 ]
 
 [project.scripts]
