@@ -1,0 +1,103 @@
+{
+  "schema_version": "1.0",
+  "model_path": "/home/hyz/code/prodEng/data-compare/examples/basic_add_relu/input/model.onnx",
+  "opset_version": 17,
+  "nodes": [
+    {
+      "name": "Add_0",
+      "op_type": "Add",
+      "domain": "",
+      "attributes": {},
+      "inputs": [
+        {
+          "name": "X",
+          "shape": [
+            2,
+            3
+          ],
+          "dtype": "float32",
+          "data_path": "tensors/X.npy"
+        },
+        {
+          "name": "Y",
+          "shape": [
+            2,
+            3
+          ],
+          "dtype": "float32",
+          "data_path": "tensors/Y.npy"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "add_out",
+          "shape": [
+            2,
+            3
+          ],
+          "dtype": "float32",
+          "data_path": "tensors/add_out.npy"
+        }
+      ]
+    },
+    {
+      "name": "Relu_0",
+      "op_type": "Relu",
+      "domain": "",
+      "attributes": {},
+      "inputs": [
+        {
+          "name": "add_out",
+          "shape": [
+            2,
+            3
+          ],
+          "dtype": "float32",
+          "data_path": "tensors/add_out.npy"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "Z",
+          "shape": [
+            2,
+            3
+          ],
+          "dtype": "float32",
+          "data_path": "tensors/Z.npy"
+        }
+      ]
+    }
+  ],
+  "graph_inputs": [
+    {
+      "name": "X",
+      "shape": [
+        2,
+        3
+      ],
+      "dtype": "float32",
+      "data_path": "tensors/X.npy"
+    },
+    {
+      "name": "Y",
+      "shape": [
+        2,
+        3
+      ],
+      "dtype": "float32",
+      "data_path": "tensors/Y.npy"
+    }
+  ],
+  "graph_outputs": [
+    {
+      "name": "Z",
+      "shape": [
+        2,
+        3
+      ],
+      "dtype": "float32",
+      "data_path": "tensors/Z.npy"
+    }
+  ]
+}

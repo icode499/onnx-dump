@@ -53,5 +53,24 @@ uv run pytest -v
 ## Example
 
 ```bash
-python examples/run_example.py
+python examples/basic_add_relu/generate.py
+```
+
+This creates a self-contained example under `examples/basic_add_relu/`:
+
+```text
+examples/basic_add_relu/
+├── generate.py
+├── input/
+│   ├── model.onnx
+│   └── tensors/
+│       ├── X.npy
+│       └── Y.npy
+└── output/
+    ├── manifest.json
+    └── tensors/
+        ├── X.npy
+        ├── Y.npy
+        ├── add_out.npy
+        └── Z.npy
 ```
