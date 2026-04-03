@@ -75,14 +75,14 @@ class TestBuildRefGraph:
         assert step["attributes"]["message"] == "ok"
 
     def test_unnamed_nodes_get_auto_ids(self, unnamed_nodes_model):
-        """Nodes without names should fallback to index-based auto names."""
-        model, _ = load_and_augment(unnamed_nodes_model)
-        initializer_table = build_initializer_table(model)
+        """Builder should synthesize names for nodes that start unnamed."""
+        initializer_table = build_initializer_table(unnamed_nodes_model)
 
-        result = build_ref_graph(model, inference_results={}, initializer_table=initializer_table)
+        result = build_ref_graph(unnamed_nodes_model, inference_results={}, initializer_table=initializer_table)
 
         ids = [step["id"] for step in result["steps"]]
-        assert ids == [node.name for node in model.graph.node]
+        expected_ids = [f"{index}_{node.op_type}" for index, node in enumerate(unnamed_nodes_model.graph.node)]
+        assert ids == expected_ids
 
     def test_missing_default_opset_raises(self):
         """Missing default-domain opset import must raise a clear error."""
