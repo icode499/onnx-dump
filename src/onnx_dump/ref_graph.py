@@ -12,7 +12,10 @@ def _get_default_opset(model: ModelProto) -> int:
     for opset in model.opset_import:
         if opset.domain == "":
             return int(opset.version)
-    return 0
+    domains = [op.domain or "" for op in model.opset_import]
+    raise ValueError(
+        f"Default-domain ONNX opset import missing; present imports: {domains}"
+    )
 
 _ALLOWED_ATTRIBUTE_TYPES = {
     AttributeProto.FLOAT,
@@ -47,15 +50,17 @@ def build_ref_graph(model: ModelProto, inference_results: dict[str, Any], initia
     }
 
     steps: list[dict[str, Any]] = []
-    for node in model.graph.node:
-        attributes: dict[str, Any] = {}
-        for attribute in node.attribute:
-            attributes[attribute.name] = _normalize_attribute(attribute)
+    for index, node in enumerate(model.graph.node):
+        node_name = node.name or f"{index}_{node.op_type}"
+        attributes = {
+            attribute.name: _normalize_attribute(attribute)
+            for attribute in node.attribute
+        }
 
         steps.append(
             {
-                "id": node.name,
-                "name": node.name,
+                "id": node_name,
+                "name": node_name,
                 "op_type": node.op_type,
                 "inputs": list(node.input),
                 "outputs": list(node.output),

@@ -2,6 +2,8 @@
 
 from onnx import helper, TensorProto
 
+import pytest
+
 from onnx_dump.graph import build_initializer_table, load_and_augment
 
 from onnx_dump.ref_graph import build_ref_graph
@@ -18,7 +20,8 @@ class TestBuildRefGraph:
         meta = result["meta"]
         assert meta["format_version"] == 1
         assert meta["graph_spec"] == "onnx"
-        assert meta["opset_version"] == 17
+        expected_opset = next(import_.version for import_ in model.opset_import if import_.domain == "")
+        assert meta["opset_version"] == expected_opset
 
         steps = result["steps"]
         assert len(steps) == 1
@@ -70,3 +73,25 @@ class TestBuildRefGraph:
         step = result["steps"][0]
         assert step["attributes"]["invalid"] is None
         assert step["attributes"]["message"] == "ok"
+
+    def test_unnamed_nodes_get_auto_ids(self, unnamed_nodes_model):
+        """Nodes without names should fallback to index-based auto names."""
+        model, _ = load_and_augment(unnamed_nodes_model)
+        initializer_table = build_initializer_table(model)
+
+        result = build_ref_graph(model, inference_results={}, initializer_table=initializer_table)
+
+        ids = [step["id"] for step in result["steps"]]
+        assert ids == [node.name for node in model.graph.node]
+
+    def test_missing_default_opset_raises(self):
+        """Missing default-domain opset import must raise a clear error."""
+        graph = helper.make_graph([], "bad", [], [])
+        model = helper.make_model(
+            graph,
+            opset_imports=[helper.make_opsetid("com.example", 1)],
+        )
+        initializer_table = build_initializer_table(model)
+
+        with pytest.raises(ValueError, match="Default-domain ONNX opset import missing"):
+            build_ref_graph(model, inference_results={}, initializer_table=initializer_table)
