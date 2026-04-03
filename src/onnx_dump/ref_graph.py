@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from typing import Any
 
-import onnx
 from onnx import AttributeProto, helper
 from onnx import ModelProto
 
@@ -13,18 +12,29 @@ def _get_default_opset(model: ModelProto) -> int:
     for opset in model.opset_import:
         if opset.domain == "":
             return int(opset.version)
-    if model.opset_import:
-        return int(model.opset_import[0].version)
     return 0
+
+_ALLOWED_ATTRIBUTE_TYPES = {
+    AttributeProto.FLOAT,
+    AttributeProto.INT,
+    AttributeProto.STRING,
+    AttributeProto.FLOATS,
+    AttributeProto.INTS,
+    AttributeProto.STRINGS,
+}
 
 
 def _normalize_attribute(attribute: AttributeProto) -> Any:
     if attribute.type in {AttributeProto.GRAPH, AttributeProto.GRAPHS}:
         return None
-    try:
-        return helper.get_attribute_value(attribute)
-    except Exception:
+    if attribute.type not in _ALLOWED_ATTRIBUTE_TYPES:
         return None
+    value = helper.get_attribute_value(attribute)
+    if attribute.type == AttributeProto.STRING and isinstance(value, (bytes, bytearray)):
+        return value.decode("utf-8")
+    if attribute.type == AttributeProto.STRINGS:
+        return [item.decode("utf-8") if isinstance(item, (bytes, bytearray)) else item for item in value]
+    return value
 
 
 def build_ref_graph(model: ModelProto, inference_results: dict[str, Any], initializer_table: dict[str, Any]) -> dict[str, Any]:
