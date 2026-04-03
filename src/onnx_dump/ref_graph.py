@@ -13,6 +13,9 @@ def _get_default_opset(model: ModelProto) -> int:
     for opset in model.opset_import:
         if opset.domain == "":
             return int(opset.version)
+    for opset in model.opset_import:
+        if opset.domain == "ai.onnx":
+            return int(opset.version)
     domains = [op.domain or "" for op in model.opset_import]
     raise ValueError(
         f"Default-domain ONNX opset import missing; present imports: {domains}"
@@ -41,6 +44,13 @@ _NUMPY_DTYPE_TO_ONNX = {
     "uint64": "UINT64",
     "bool": "BOOL",
     "bool_": "BOOL",
+    "bfloat16": "BFLOAT16",
+    "complex64": "COMPLEX64",
+    "complex128": "COMPLEX128",
+    "float8_e4m3fn": "FLOAT8E4M3FN",
+    "float8_e4m3fnuz": "FLOAT8E4M3FNUZ",
+    "float8_e5m2": "FLOAT8E5M2",
+    "float8_e5m2fnuz": "FLOAT8E5M2FNUZ",
 }
 
 
@@ -73,6 +83,14 @@ def _validate_tensor_name(name: str) -> None:
         raise ValueError(f"Unsafe tensor name {name!r}: contains a path separator")
 
 
+def _unique_step_id(step_name: str, seen_ids: dict[str, int]) -> str:
+    count = seen_ids.get(step_name, 0)
+    seen_ids[step_name] = count + 1
+    if count == 0:
+        return step_name
+    return f"{step_name}_{count}"
+
+
 def build_ref_graph(model: ModelProto, inference_results: dict[str, Any], initializer_table: dict[str, Any]) -> dict[str, Any]:
     """Build the reference JSON schema for the given ONNX model.
 
@@ -88,8 +106,10 @@ def build_ref_graph(model: ModelProto, inference_results: dict[str, Any], initia
     }
 
     steps: list[dict[str, Any]] = []
+    seen_ids: dict[str, int] = {}
     for index, node in enumerate(model.graph.node):
         node_name = node.name or f"{index}_{node.op_type}"
+        step_id = _unique_step_id(node_name, seen_ids)
         attributes = {
             attribute.name: _normalize_attribute(attribute)
             for attribute in node.attribute
@@ -97,11 +117,11 @@ def build_ref_graph(model: ModelProto, inference_results: dict[str, Any], initia
 
         steps.append(
             {
-                "id": node_name,
+                "id": step_id,
                 "name": node_name,
                 "op_type": node.op_type,
-                "inputs": list(node.input),
-                "outputs": list(node.output),
+                "inputs": [name for name in node.input if name],
+                "outputs": [name for name in node.output if name],
                 "attributes": attributes,
             }
         )

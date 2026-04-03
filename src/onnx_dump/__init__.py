@@ -28,7 +28,9 @@ def dump_model(
 
     results = run_inference(model, input_arrays)
     tensor_table = dict(results)
-    tensor_table.update(input_arrays)
+    for name, array in input_arrays.items():
+        if name not in tensor_table:
+            tensor_table[name] = array
 
     graph_document = build_ref_graph(model, tensor_table, initializer_table)
     all_tensors = dict(initializer_table)

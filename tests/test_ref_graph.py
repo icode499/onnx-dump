@@ -141,6 +141,24 @@ class TestBuildRefGraph:
 
         assert result["meta"]["opset_version"] == 19
 
+    def test_ai_onnx_opset_is_accepted_as_default_fallback(self):
+        add_node = helper.make_node("Add", inputs=["X", "Y"], outputs=["Z"], name="Add_0")
+        graph = helper.make_graph([add_node], "ai_onnx_only", [], [])
+        model = helper.make_model(
+            graph,
+            opset_imports=[helper.make_opsetid("ai.onnx", 18)],
+        )
+
+        inference_results = {
+            "X": np.zeros((1,), dtype=np.float32),
+            "Y": np.zeros((1,), dtype=np.float32),
+            "Z": np.zeros((1,), dtype=np.float32),
+        }
+
+        result = build_ref_graph(model, inference_results=inference_results, initializer_table={})
+
+        assert result["meta"]["opset_version"] == 18
+
     def test_attribute_normalization_filters_unsupported_types(self):
         """Attributes of unsupported kinds should collapse to None."""
         tensor_attr = helper.make_tensor("invalid", TensorProto.FLOAT, [1], [1.0])
@@ -223,6 +241,53 @@ class TestBuildRefGraph:
         ids = [step["id"] for step in result["steps"]]
         expected_ids = [f"{index}_{node.op_type}" for index, node in enumerate(unnamed_nodes_model.graph.node)]
         assert ids == expected_ids
+
+    def test_duplicate_node_names_get_unique_step_ids(self):
+        first = helper.make_node("Abs", ["X"], ["abs_out"], name="dup")
+        second = helper.make_node("Neg", ["abs_out"], ["Y"], name="dup")
+        graph = helper.make_graph(
+            [first, second],
+            "duplicate_names",
+            inputs=[helper.make_tensor_value_info("X", TensorProto.FLOAT, [1])],
+            outputs=[helper.make_tensor_value_info("Y", TensorProto.FLOAT, [1])],
+        )
+        model = helper.make_model(graph, opset_imports=[helper.make_opsetid("", 17)])
+
+        inference_results = {
+            "X": np.zeros((1,), dtype=np.float32),
+            "abs_out": np.zeros((1,), dtype=np.float32),
+            "Y": np.zeros((1,), dtype=np.float32),
+        }
+
+        result = build_ref_graph(model, inference_results=inference_results, initializer_table={})
+
+        assert [step["id"] for step in result["steps"]] == ["dup", "dup_1"]
+        assert [step["name"] for step in result["steps"]] == ["dup", "dup"]
+
+    def test_filters_blank_optional_inputs_and_outputs_from_steps(self):
+        node = helper.make_node(
+            "Dropout",
+            inputs=["X", "", ""],
+            outputs=["Y", ""],
+            name="Dropout_0",
+        )
+        graph = helper.make_graph(
+            [node],
+            "optional_blanks",
+            inputs=[helper.make_tensor_value_info("X", TensorProto.FLOAT, [1])],
+            outputs=[helper.make_tensor_value_info("Y", TensorProto.FLOAT, [1])],
+        )
+        model = helper.make_model(graph, opset_imports=[helper.make_opsetid("", 17)])
+
+        inference_results = {
+            "X": np.zeros((1,), dtype=np.float32),
+            "Y": np.zeros((1,), dtype=np.float32),
+        }
+
+        result = build_ref_graph(model, inference_results=inference_results, initializer_table={})
+
+        assert result["steps"][0]["inputs"] == ["X"]
+        assert result["steps"][0]["outputs"] == ["Y"]
 
     def test_missing_default_opset_raises(self):
         """Missing default-domain opset import must raise a clear error."""
