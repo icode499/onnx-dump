@@ -170,9 +170,9 @@ class TestBuildRefGraph:
         assert step["attributes"]["invalid"] is None
         assert step["attributes"]["message"] == "ok"
 
-    def test_rejects_unsafe_tensor_names_before_manifest_construction(self):
+    @pytest.mark.parametrize("bad_name", ["bad/name", "bad\\name", ".", ".."])
+    def test_rejects_unsafe_tensor_names_before_manifest_construction(self, bad_name):
         """Unsafe tensor names (e.g. path-like names) must be rejected."""
-        bad_name = "bad/name"
         add_node = helper.make_node(
             "Add",
             inputs=["X", "Y"],

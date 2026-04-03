@@ -67,6 +67,8 @@ def _normalize_attribute(attribute: AttributeProto) -> Any:
 def _validate_tensor_name(name: str) -> None:
     # These names will later be used as keys and often as file-ish identifiers by
     # downstream tooling; reject path-like names early at the schema layer.
+    if name in {".", ".."}:
+        raise ValueError(f"Unsafe tensor name {name!r}: reserved path segment")
     if "/" in name or "\\" in name:
         raise ValueError(f"Unsafe tensor name {name!r}: contains a path separator")
 
@@ -114,11 +116,9 @@ def build_ref_graph(model: ModelProto, inference_results: dict[str, Any], initia
     referenced_tensors.update(value_info.name for value_info in model.graph.input if value_info.name)
     referenced_tensors.update(value_info.name for value_info in model.graph.output if value_info.name)
 
-    for name in referenced_tensors:
-        _validate_tensor_name(name)
-
     tensor_entries: dict[str, dict[str, Any]] = {}
     for name in sorted(referenced_tensors):
+        _validate_tensor_name(name)
         array = inference_results.get(name)
         if array is None:
             array = initializer_table.get(name)
