@@ -170,6 +170,40 @@ class TestBuildRefGraph:
         assert step["attributes"]["invalid"] is None
         assert step["attributes"]["message"] == "ok"
 
+    def test_rejects_unsafe_tensor_names_before_manifest_construction(self):
+        """Unsafe tensor names (e.g. path-like names) must be rejected."""
+        bad_name = "bad/name"
+        add_node = helper.make_node(
+            "Add",
+            inputs=["X", "Y"],
+            outputs=[bad_name],
+            name="Add_0",
+        )
+        graph = helper.make_graph(
+            [add_node],
+            "unsafe_tensor_names",
+            inputs=[
+                helper.make_tensor_value_info("X", TensorProto.FLOAT, [1]),
+                helper.make_tensor_value_info("Y", TensorProto.FLOAT, [1]),
+            ],
+            outputs=[helper.make_tensor_value_info(bad_name, TensorProto.FLOAT, [1])],
+        )
+        model = helper.make_model(graph, opset_imports=[helper.make_opsetid("", 17)])
+        initializer_table = build_initializer_table(model)
+
+        inference_results = {
+            "X": np.zeros((1,), dtype=np.float32),
+            "Y": np.zeros((1,), dtype=np.float32),
+            bad_name: np.zeros((1,), dtype=np.float32),
+        }
+
+        with pytest.raises(ValueError, match="Unsafe tensor name"):
+            build_ref_graph(
+                model,
+                inference_results=inference_results,
+                initializer_table=initializer_table,
+            )
+
     def test_unnamed_nodes_get_auto_ids(self, unnamed_nodes_model):
         """Builder should synthesize names for nodes that start unnamed."""
         initializer_table = build_initializer_table(unnamed_nodes_model)
