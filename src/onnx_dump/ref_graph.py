@@ -65,7 +65,12 @@ def _normalize_attribute(attribute: AttributeProto) -> Any:
 
 
 def build_ref_graph(model: ModelProto, inference_results: dict[str, Any], initializer_table: dict[str, Any]) -> dict[str, Any]:
-    """Build the reference JSON schema for the given ONNX model."""
+    """Build the reference JSON schema for the given ONNX model.
+
+    Note: `inference_results` is expected to contain NumPy arrays for graph
+    inputs as well as node outputs (including intermediates) as produced by a
+    runtime dump or equivalent mechanism.
+    """
 
     meta = {
         "format_version": 1,
@@ -103,7 +108,7 @@ def build_ref_graph(model: ModelProto, inference_results: dict[str, Any], initia
     referenced_tensors.update(value_info.name for value_info in model.graph.output if value_info.name)
 
     tensor_entries: dict[str, dict[str, Any]] = {}
-    for name in referenced_tensors:
+    for name in sorted(referenced_tensors):
         array = inference_results.get(name)
         if array is None:
             array = initializer_table.get(name)

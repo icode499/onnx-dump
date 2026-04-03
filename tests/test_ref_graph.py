@@ -44,6 +44,27 @@ class TestBuildRefGraph:
 
         assert isinstance(result["tensors"], dict)
 
+    def test_raises_when_referenced_tensor_missing_from_all_sources(self, simple_add_model):
+        model, _ = load_and_augment(simple_add_model)
+        initializer_table = build_initializer_table(model)
+
+        # Y is a required graph input for the Add node, but omitted here to
+        # ensure the builder fails clearly when referenced tensors are missing.
+        inference_results = {
+            "X": np.zeros((2, 3), dtype=np.float32),
+            "Z": np.zeros((2, 3), dtype=np.float32),
+        }
+
+        with pytest.raises(
+            ValueError,
+            match="referenced by the graph is missing from inference_results and initializer_table",
+        ):
+            build_ref_graph(
+                model,
+                inference_results=inference_results,
+                initializer_table=initializer_table,
+            )
+
     def test_emits_tensor_metadata_for_inputs_outputs_and_initializers(
         self, multi_op_model
     ):
