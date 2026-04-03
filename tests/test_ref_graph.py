@@ -264,6 +264,29 @@ class TestBuildRefGraph:
         assert [step["id"] for step in result["steps"]] == ["dup", "dup_1"]
         assert [step["name"] for step in result["steps"]] == ["dup", "dup"]
 
+    def test_generated_step_ids_do_not_collide_with_real_node_names(self):
+        first = helper.make_node("Abs", ["X"], ["abs_out"], name="dup")
+        second = helper.make_node("Neg", ["abs_out"], ["mid"], name="dup")
+        third = helper.make_node("Relu", ["mid"], ["Y"], name="dup_1")
+        graph = helper.make_graph(
+            [first, second, third],
+            "duplicate_name_collision",
+            inputs=[helper.make_tensor_value_info("X", TensorProto.FLOAT, [1])],
+            outputs=[helper.make_tensor_value_info("Y", TensorProto.FLOAT, [1])],
+        )
+        model = helper.make_model(graph, opset_imports=[helper.make_opsetid("", 17)])
+
+        inference_results = {
+            "X": np.zeros((1,), dtype=np.float32),
+            "abs_out": np.zeros((1,), dtype=np.float32),
+            "mid": np.zeros((1,), dtype=np.float32),
+            "Y": np.zeros((1,), dtype=np.float32),
+        }
+
+        result = build_ref_graph(model, inference_results=inference_results, initializer_table={})
+
+        assert [step["id"] for step in result["steps"]] == ["dup", "dup_1", "dup_1_1"]
+
     def test_filters_blank_optional_inputs_and_outputs_from_steps(self):
         node = helper.make_node(
             "Dropout",

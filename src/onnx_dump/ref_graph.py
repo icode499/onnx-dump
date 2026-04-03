@@ -83,12 +83,14 @@ def _validate_tensor_name(name: str) -> None:
         raise ValueError(f"Unsafe tensor name {name!r}: contains a path separator")
 
 
-def _unique_step_id(step_name: str, seen_ids: dict[str, int]) -> str:
-    count = seen_ids.get(step_name, 0)
-    seen_ids[step_name] = count + 1
-    if count == 0:
-        return step_name
-    return f"{step_name}_{count}"
+def _unique_step_id(step_name: str, used_ids: set[str]) -> str:
+    candidate = step_name
+    suffix = 1
+    while candidate in used_ids:
+        candidate = f"{step_name}_{suffix}"
+        suffix += 1
+    used_ids.add(candidate)
+    return candidate
 
 
 def build_ref_graph(model: ModelProto, inference_results: dict[str, Any], initializer_table: dict[str, Any]) -> dict[str, Any]:
@@ -106,10 +108,10 @@ def build_ref_graph(model: ModelProto, inference_results: dict[str, Any], initia
     }
 
     steps: list[dict[str, Any]] = []
-    seen_ids: dict[str, int] = {}
+    used_ids: set[str] = set()
     for index, node in enumerate(model.graph.node):
         node_name = node.name or f"{index}_{node.op_type}"
-        step_id = _unique_step_id(node_name, seen_ids)
+        step_id = _unique_step_id(node_name, used_ids)
         attributes = {
             attribute.name: _normalize_attribute(attribute)
             for attribute in node.attribute

@@ -117,3 +117,16 @@ class TestExportResults:
 
         with pytest.raises(ValueError, match="Unsafe tensor name"):
             export_results(document, tensor_table, str(tmp_path / "out"))
+
+    def test_raises_when_output_dir_is_obviously_unsafe(self, tmp_path, monkeypatch):
+        document = self._graph_document()
+        tensor_table = {
+            "X": np.ones((2, 3), dtype=np.float32),
+            "Y": np.ones((2, 3), dtype=np.float32),
+            "Z": np.ones((2, 3), dtype=np.float32),
+        }
+
+        monkeypatch.chdir(tmp_path)
+
+        with pytest.raises(ValueError, match="Refusing to overwrite unsafe output_dir"):
+            export_results(document, tensor_table, ".")

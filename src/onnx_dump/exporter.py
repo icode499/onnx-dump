@@ -18,6 +18,13 @@ def _validate_tensor_name(name: str) -> None:
         raise ValueError(f"Unsafe tensor name {name!r}: cannot be used as a filename")
 
 
+def _validate_output_dir(out_path: Path) -> None:
+    resolved = out_path.resolve()
+    unsafe_paths = {Path.cwd().resolve(), Path.home().resolve(), Path("/")}
+    if resolved in unsafe_paths:
+        raise ValueError(f"Refusing to overwrite unsafe output_dir {str(out_path)!r}")
+
+
 def export_results(
     graph_document: dict[str, Any],
     tensor_table: dict[str, np.ndarray],
@@ -25,6 +32,7 @@ def export_results(
 ) -> None:
     """Write manifest.json and declared tensor .npy files to output_dir."""
     out_path = Path(output_dir)
+    _validate_output_dir(out_path)
     if out_path.exists():
         shutil.rmtree(out_path)
     tensors_path = out_path / "tensors"
