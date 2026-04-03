@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+import numpy as np
 from onnx import AttributeProto, helper
 from onnx import ModelProto
 
@@ -25,6 +26,29 @@ _ALLOWED_ATTRIBUTE_TYPES = {
     AttributeProto.INTS,
     AttributeProto.STRINGS,
 }
+
+_NUMPY_DTYPE_TO_ONNX = {
+    "float16": "FLOAT16",
+    "float32": "FLOAT",
+    "float64": "DOUBLE",
+    "int8": "INT8",
+    "int16": "INT16",
+    "int32": "INT32",
+    "int64": "INT64",
+    "uint8": "UINT8",
+    "uint16": "UINT16",
+    "uint32": "UINT32",
+    "uint64": "UINT64",
+    "bool": "BOOL",
+    "bool_": "BOOL",
+}
+
+
+def _numpy_dtype_to_onnx(dtype: np.dtype) -> str:
+    dtype_name = np.dtype(dtype).name
+    if dtype_name not in _NUMPY_DTYPE_TO_ONNX:
+        raise ValueError(f"Unsupported numpy dtype {dtype_name!r}")
+    return _NUMPY_DTYPE_TO_ONNX[dtype_name]
 
 
 def _normalize_attribute(attribute: AttributeProto) -> Any:
@@ -68,8 +92,35 @@ def build_ref_graph(model: ModelProto, inference_results: dict[str, Any], initia
             }
         )
 
+    referenced_tensors: set[str] = set()
+    for step in steps:
+        referenced_tensors.update(name for name in step["inputs"] if name)
+        referenced_tensors.update(name for name in step["outputs"] if name)
+
+    # Ensure graph-level inputs/outputs are represented even if the step list
+    # does not mention them (e.g., odd models, empty graphs).
+    referenced_tensors.update(value_info.name for value_info in model.graph.input if value_info.name)
+    referenced_tensors.update(value_info.name for value_info in model.graph.output if value_info.name)
+
+    tensor_entries: dict[str, dict[str, Any]] = {}
+    for name in referenced_tensors:
+        array = inference_results.get(name)
+        if array is None:
+            array = initializer_table.get(name)
+        if array is None:
+            raise ValueError(
+                f"Tensor {name!r} referenced by the graph is missing from inference_results and initializer_table"
+            )
+
+        array = np.asarray(array)
+        tensor_entries[name] = {
+            "dtype": _numpy_dtype_to_onnx(array.dtype),
+            "shape": list(array.shape),
+            "storage_format": "plain",
+        }
+
     return {
         "meta": meta,
         "steps": steps,
-        "tensors": {},
+        "tensors": tensor_entries,
     }
