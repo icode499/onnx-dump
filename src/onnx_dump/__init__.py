@@ -4,6 +4,7 @@ def hello() -> str:
 
 from onnx_dump.exporter import export_results
 from onnx_dump.graph import build_initializer_table, load_and_augment
+from onnx_dump.ref_graph import build_ref_graph
 from onnx_dump.runner import map_inputs_from_files, run_inference
 
 __version__ = "0.1.0"
@@ -16,7 +17,7 @@ def dump_model(
     input_names: list[str] | None = None,
 ) -> None:
     """Run an ONNX model and dump per-operator intermediate tensors."""
-    model, original_output_names = load_and_augment(model_path)
+    model, _ = load_and_augment(model_path)
     initializer_table = build_initializer_table(model)
     input_arrays = map_inputs_from_files(
         model,
@@ -26,15 +27,11 @@ def dump_model(
     )
 
     results = run_inference(model, input_arrays)
-    for name, array in input_arrays.items():
-        if name not in results:
-            results[name] = array
+    tensor_table = dict(results)
+    tensor_table.update(input_arrays)
 
-    export_results(
-        model,
-        results,
-        initializer_table,
-        output_dir,
-        model_path=model_path,
-        original_output_names=original_output_names,
-    )
+    graph_document = build_ref_graph(model, tensor_table, initializer_table)
+    all_tensors = dict(initializer_table)
+    all_tensors.update(tensor_table)
+
+    export_results(graph_document, all_tensors, output_dir)

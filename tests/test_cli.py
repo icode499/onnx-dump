@@ -33,9 +33,13 @@ class TestDumpModel:
         dump_model(model_path, [x_path, y_path], out_dir)
 
         manifest = json.loads((tmp_path / "output" / "manifest.json").read_text())
-        assert manifest["schema_version"] == "1.0"
-        assert manifest["model_path"] == model_path
-        assert len(manifest["nodes"]) == 1
+        assert manifest["meta"] == {
+            "format_version": 1,
+            "graph_spec": "onnx",
+            "opset_version": 17,
+        }
+        assert [step["op_type"] for step in manifest["steps"]] == ["Add"]
+        assert manifest["tensors"]["Z"]["dtype"] == "FLOAT"
 
         z_tensor = np.load(str(tmp_path / "output" / "tensors" / "Z.npy"))
         np.testing.assert_allclose(z_tensor, np.ones((2, 3)) * 3)
