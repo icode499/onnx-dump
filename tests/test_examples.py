@@ -61,7 +61,14 @@ def test_basic_add_relu_generator_writes_complete_example_data(tmp_path):
     np.testing.assert_array_equal(z_output, np.maximum(0, add_out))
 
     manifest = json.loads((example_dir / "output" / "manifest.json").read_text())
-    assert manifest["model_path"] == str(example_dir / "input" / "model.onnx")
+    assert manifest["meta"] == {
+        "format_version": 1,
+        "graph_spec": "onnx",
+        "opset_version": 17,
+    }
+    assert [step["op_type"] for step in manifest["steps"]] == ["Add", "Relu"]
+    assert sorted(manifest["tensors"]) == ["X", "Y", "Z", "add_out"]
+    assert manifest["tensors"]["Z"]["dtype"] == "FLOAT"
     assert sorted(path.name for path in output_tensors_dir.glob("*.npy")) == [
         "X.npy",
         "Y.npy",

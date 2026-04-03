@@ -51,8 +51,14 @@ class TestSystemAccuracy:
         dump_model(model_path, [x_path], out_dir)
 
         manifest = json.loads((tmp_path / "output" / "manifest.json").read_text())
-        assert len(manifest["nodes"]) == 3
-        assert [node["op_type"] for node in manifest["nodes"]] == ["MatMul", "Add", "Relu"]
+        assert manifest["meta"] == {
+            "format_version": 1,
+            "graph_spec": "onnx",
+            "opset_version": 17,
+        }
+        assert [step["op_type"] for step in manifest["steps"]] == ["MatMul", "Add", "Relu"]
+        assert manifest["tensors"]["output"]["dtype"] == "FLOAT"
+        assert manifest["tensors"]["W"]["storage_format"] == "plain"
 
         tensors_dir = tmp_path / "output" / "tensors"
 

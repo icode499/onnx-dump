@@ -42,7 +42,14 @@ output/
 ```
 
 `manifest.json` contains operator metadata with the shape, dtype, and data path
-for every captured tensor.
+for a unified graph document with:
+
+- `meta`: graph-level format and ONNX opset information
+- `steps`: ordered operator steps with names, op types, inputs, outputs, and attributes
+- `tensors`: top-level tensor metadata keyed by tensor name
+
+Together with `tensors/*.npy`, the output can be used directly as the `ref`
+side input for `op-graph-align compare`.
 
 ## Run tests
 
