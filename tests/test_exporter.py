@@ -1,5 +1,6 @@
 """Tests for exporter.py - ref manifest and .npy file output."""
 
+import copy
 import json
 
 import numpy as np
@@ -35,6 +36,7 @@ class TestExportResults:
 
     def test_writes_ref_manifest_json(self, tmp_path):
         document = self._graph_document()
+        original = copy.deepcopy(document)
         tensor_table = {
             "X": np.ones((2, 3), dtype=np.float32),
             "Y": np.ones((2, 3), dtype=np.float32) * 2,
@@ -44,7 +46,8 @@ class TestExportResults:
         export_results(document, tensor_table, str(tmp_path / "out"))
 
         manifest = json.loads((tmp_path / "out" / "manifest.json").read_text())
-        assert manifest == document
+        assert manifest == original
+        assert document == original
         assert "schema_version" not in manifest
         assert "nodes" not in manifest
         assert "graph_inputs" not in manifest
@@ -99,4 +102,18 @@ class TestExportResults:
         }
 
         with pytest.raises(ValueError, match="Tensor 'Z' missing from tensor_table"):
+            export_results(document, tensor_table, str(tmp_path / "out"))
+
+    @pytest.mark.parametrize("bad_name", ["bad/name", r"bad\\name", ".", ".."])
+    def test_raises_when_declared_tensor_name_is_unsafe(self, tmp_path, bad_name):
+        document = self._graph_document()
+        document["tensors"][bad_name] = document["tensors"].pop("Z")
+        document["steps"][0]["outputs"] = [bad_name]
+        tensor_table = {
+            "X": np.ones((2, 3), dtype=np.float32),
+            "Y": np.ones((2, 3), dtype=np.float32),
+            bad_name: np.ones((2, 3), dtype=np.float32),
+        }
+
+        with pytest.raises(ValueError, match="Unsafe tensor name"):
             export_results(document, tensor_table, str(tmp_path / "out"))

@@ -13,6 +13,11 @@ logger = logging.getLogger("onnx_dump")
 _SIZE_WARNING_BYTES = 10 * 1024 * 1024 * 1024
 
 
+def _validate_tensor_name(name: str) -> None:
+    if name in {".", ".."} or "/" in name or "\\" in name:
+        raise ValueError(f"Unsafe tensor name {name!r}: cannot be used as a filename")
+
+
 def export_results(
     graph_document: dict[str, Any],
     tensor_table: dict[str, np.ndarray],
@@ -29,6 +34,7 @@ def export_results(
     tensor_entries = graph_document["tensors"]
 
     for tensor_name in sorted(tensor_entries):
+        _validate_tensor_name(tensor_name)
         array = tensor_table.get(tensor_name)
         if array is None:
             raise ValueError(f"Tensor {tensor_name!r} missing from tensor_table")
