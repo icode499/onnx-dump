@@ -10,6 +10,11 @@ useful as a golden reference when comparing chip-specific operator behavior.
 uv sync --extra dev
 ```
 
+For contract validation, use `op-io-contracts` package `v0.2.0`. This package
+release exposes the current V1 contract baseline; the package version
+`v0.2.0`, the baseline name `V1`, and the initial change record
+`changes/v1.0.0-initial-contracts.yaml` are intentionally separate identifiers.
+
 ## Python API
 
 ```python
@@ -41,8 +46,8 @@ output/
     └── output.npy
 ```
 
-`manifest.json` contains operator metadata with the shape, dtype, and data path
-for a unified graph document with:
+`manifest.json` is a `unified_graph/v1` reference graph document with exactly
+these top-level keys:
 
 - `meta`: graph-level format and ONNX opset information
 - `steps`: ordered operator steps with names, op types, inputs, outputs, and attributes
@@ -50,6 +55,43 @@ for a unified graph document with:
 
 Together with `tensors/*.npy`, the output can be used directly as the `ref`
 side input for `op-graph-align compare`.
+
+`onnx-dump`'s shared-contract role is `ref_graph_producer` for
+`unified_graph/v1`. The authoritative contract is the `op-io-contracts` V1
+baseline:
+
+- `../op-io-contracts/baselines/V1.md`
+- `../op-io-contracts/changes/v1.0.0-initial-contracts.yaml`
+- `../op-io-contracts/USAGE.md`
+- `../op-io-contracts/MIGRATIONS.md`
+
+## Validate the contract
+
+Validate generated output as a reference graph:
+
+```bash
+op-io-validate graph \
+  --graph output/manifest.json \
+  --tensors output/tensors \
+  --role ref
+```
+
+When testing against a sibling checkout of `op-io-contracts`:
+
+```bash
+PYTHONPATH=../op-io-contracts/src uv run --no-sync python -m op_io_contracts.cli graph \
+  --graph examples/basic_add_relu/output/manifest.json \
+  --tensors examples/basic_add_relu/output/tensors \
+  --role ref
+```
+
+The Python API returns `ValidationResult`. New code should read
+`ValidationResult.issues` for structured `code`, `path`, `contract`,
+`baseline`, `roles`, and `docs` fields. Legacy `ValidationResult.errors`
+remains available for string-based callers.
+
+On validation failure, the `op-io-validate` CLI prints issue details with
+code/path, contract, baseline, affected roles, and docs links.
 
 ## Run tests
 

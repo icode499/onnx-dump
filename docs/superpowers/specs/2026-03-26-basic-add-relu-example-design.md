@@ -48,7 +48,7 @@ The example directory is split into `input/` and `output/`:
 
 - `input/model.onnx` stores the example model
 - `input/tensors/` stores model input tensors, named after real graph inputs
-- `output/manifest.json` stores exported metadata
+- `output/manifest.json` stores the `unified_graph/v1` reference graph
 - `output/tensors/` stores dumped tensors produced by `dump_model()`
 
 Using `tensors/` on both sides keeps the structure regular across examples.
@@ -76,6 +76,8 @@ it against a temporary target directory. The test must verify:
 - `output/manifest.json` exists
 - `output/tensors/X.npy`, `Y.npy`, `add_out.npy`, and `Z.npy` exist
 - dumped tensors match the expected `Add` and `Relu` results
+- the output validates with `op-io-contracts` `v0.2.0` as a `role="ref"`
+  `unified_graph/v1` artifact
 
 ### 5. Documentation
 
