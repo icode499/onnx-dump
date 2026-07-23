@@ -130,3 +130,19 @@ class TestExportResults:
 
         with pytest.raises(ValueError, match="Refusing to overwrite unsafe output_dir"):
             export_results(document, tensor_table, ".")
+
+    def test_preserves_generated_artifacts_when_shared_contract_validation_fails(self, tmp_path):
+        document = self._graph_document()
+        document["unexpected"] = True
+        tensor_table = {
+            "X": np.ones((2, 3), dtype=np.float32),
+            "Y": np.ones((2, 3), dtype=np.float32),
+            "Z": np.ones((2, 3), dtype=np.float32),
+        }
+        output_dir = tmp_path / "out"
+
+        with pytest.raises(ValueError, match="E-GRAPH-META-001"):
+            export_results(document, tensor_table, str(output_dir))
+
+        assert (output_dir / "manifest.json").exists()
+        assert (output_dir / "tensors" / "Z.npy").exists()

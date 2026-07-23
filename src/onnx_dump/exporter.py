@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
+from op_io_contracts import validate_unified_graph
 
 logger = logging.getLogger("onnx_dump")
 
@@ -52,6 +53,21 @@ def export_results(
         total_bytes += array.nbytes
 
     (out_path / "manifest.json").write_text(json.dumps(graph_document, indent=2))
+
+    validation = validate_unified_graph(
+        out_path / "manifest.json",
+        tensor_dir=tensors_path,
+        role="ref",
+    )
+    if not validation.ok:
+        details = "\n".join(
+            f"{issue.code} at {issue.path}: {issue.message}"
+            for issue in validation.issues
+        )
+        raise ValueError(
+            f"generated unified_graph/v1 output failed validation; "
+            f"artifacts preserved at {out_path}:\n{details}"
+        )
 
     if total_bytes > _SIZE_WARNING_BYTES:
         logger.warning(

@@ -6,6 +6,8 @@ useful as a golden reference when comparing chip-specific operator behavior.
 
 ## Install
 
+Python 3.11 or newer is required.
+
 ```bash
 uv sync --extra dev
 ```
@@ -56,6 +58,10 @@ these top-level keys:
 Together with `tensors/*.npy`, the output can be used directly as the `ref`
 side input for `op-graph-align compare`.
 
+`dump_model()` validates the generated directory with the shared
+`unified_graph/v1` validator before returning. If validation fails, it raises
+with structured issue codes and preserves the output directory for debugging.
+
 `onnx-dump`'s shared-contract role is `ref_graph_producer` for
 `unified_graph/v1`. The authoritative contract is the `op-io-contracts` V1
 baseline:
@@ -96,7 +102,18 @@ code/path, contract, baseline, affected roles, and docs links.
 ## Run tests
 
 ```bash
-uv run pytest -v
+# Fast producer logic
+uv run pytest -q \
+  tests/test_graph.py tests/test_ref_graph.py tests/test_exporter.py tests/test_runner.py
+
+# Contract boundary
+uv run pytest -q tests/test_op_io_contract.py tests/test_examples.py
+
+# CLI/runtime smoke
+uv run pytest -q tests/test_cli.py tests/test_system.py
+
+# Full
+uv run pytest -q
 ```
 
 ## Example

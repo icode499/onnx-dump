@@ -17,9 +17,9 @@ Python package release that includes structured validation issues and CLI
 rendering. `V1` is the file-contract baseline for `unified_graph/v1` and
 `diagnose/v1`.
 
-## Artifact Shape
+## Producer Boundary
 
-`onnx-dump` writes:
+`onnx-dump` writes the producer-owned layout:
 
 ```text
 output/
@@ -28,16 +28,15 @@ output/
     └── <tensor_name>.npy
 ```
 
-`manifest.json` must be a `unified_graph/v1` JSON object with only:
-
-- `meta`
-- `steps`
-- `tensors`
-
-For ONNX reference graphs, `meta.graph_spec` is `onnx`,
-`meta.format_version` is `1`, and `meta.opset_version` is an integer.
+The complete JSON field and tensor-name rules are defined only in
+`../op-io-contracts/baselines/V1.md`. This repository owns ONNX execution and
+the output layout; it does not redefine the shared schema.
 
 ## Validation
+
+`dump_model()` performs this validation automatically after writing the real
+artifact. Failed output is preserved so the reported issue path can be
+inspected.
 
 Use the graph validator with `role="ref"`:
 

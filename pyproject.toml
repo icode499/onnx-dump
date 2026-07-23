@@ -2,12 +2,12 @@
 name = "onnx-dump"
 version = "0.1.0"
 description = "Dump per-operator intermediate tensors from ONNX models"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 dependencies = [
     "onnx>=1.14.0",
     "onnxruntime>=1.16.0",
     "numpy>=1.24.0",
-    "pytest>=9.0.2",
+    "op-io-contracts @ git+ssh://git@github.com/icode499/op-io-contracts.git@74621681f1b8c90045e7aa0baa9fe2dd13ec2a9d",
 ]
 
 [project.scripts]
@@ -16,12 +16,14 @@ onnx-dump = "onnx_dump.cli:main"
 [project.optional-dependencies]
 dev = [
     "pytest>=7.0.0",
-    "op-io-contracts @ git+ssh://git@github.com/icode499/op-io-contracts.git@v0.2.0",
 ]
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.hatch.metadata]
+allow-direct-references = true
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/onnx_dump"]
